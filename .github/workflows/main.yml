@@ -1,44 +1,69 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js project to Azure Function App - rfp-logic-dev-03
-
-on:
-  push:
-    branches:
-      - master
-  workflow_dispatch:
+name: Build and Deploy Logic App. 
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '12.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  AZURE_LOGICAPP_PACKAGE_PATH: '.'
+  DOTNET_VERSION: '3.1.301'    # set this to the dotnet version to use
+  RG_LA: 'logic-apps-v2'
+  RG_CON: 'logic-apps-v2'
+  LA_NAME: 'rfp-logic-dev-03'
+
+on:
+  - workflow_dispatch 
 
 jobs:
-  build-and-deploy:
-    runs-on: windows-latest
-    steps:
-      - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v2
+   logic_app_build: 
+    runs-on: ubuntu-latest
+    steps: 
 
-      - name: 'Setup Node ${{ env.NODE_VERSION }} Environment'
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+    - name: Checkout
+      uses: actions/checkout@v1
+    
+    #- name: Login via Az module
+    #  uses: azure/login@v1
+    #  with:
+    #    creds: ${{secrets.AZURE_CREDENTIALS}}
+    #    enable-AzPSSession: true 
 
-      - name: 'Resolve Project Dependencies Using Npm'
-        shell: pwsh
-        run: |
-             pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-             npm install
-             npm run build --if-present
-             npm run test --if-present
-             popd
+    #- name: Generate Connections
+    #  uses: azure/powershell@v1
+    #  with:
+    #    inlineScript: |
+    #      ./Scripts/Generate-Connections.ps1 -resourceGroup '${{ env.RG_CON }}'
+    #    azPSVersion: latest
 
-      - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v1
-        id: fa
-        with:
-          app-name: 'rfp-logic-dev-03'
-          slot-name: 'production'
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          publish-profile: ${{ secrets.AzureAppService_PublishProfile_d2adbf9d01e1465ea6e272a682bed0b5 }}
+    #- name: Get publish Profile
+    #  id: fncapp
+    #  uses: azure/powershell@v1
+    #  with:
+    #    inlineScript: |
+    #      $profile = Get-AzWebAppPublishingProfile `
+    #          -ResourceGroupName ${{ env.RG_LA }} `
+    #          -Name ${{ env.LA_NAME }}
+    #      $profile = $profile.Replace("`r", "").Replace("`n", "")
+    #      Write-Output "::set-output name=profile::$profile"
+    #    azPSVersion: latest
+
+    - name: Create project folder
+      run: |
+        mkdir output
+        cp 'host.json' 'output/'
+        cp 'connections.json' 'output/'
+        cp -r 'Stateful1' 'output/'
+
+    - name: Easy Zip Files
+      uses: vimtor/action-zip@v1
+      with:
+        dest: '${{ github.run_id }}.zip'
+        files: output/
+
+    - name: 'Run Azure Functions Action'
+      uses: Azure/functions-action@v1
+      id: fa
+      with:
+        app-name: ${{env.RG_LA}}
+        package: '${{ github.run_id }}.zip'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_d2adbf9d01e1465ea6e272a682bed0b5 }}
+        #publish-profile: ${{steps.fncapp.outputs.profile}}
