@@ -19,12 +19,22 @@
                         "queryParametersSingleEncoded": true
                     }
                 },
-                "runAfter": {},
+                "runAfter": {
+                    "Current_time": [
+                        "Succeeded"
+                    ]
+                },
                 "runtimeConfiguration": {
                     "contentTransfer": {
                         "transferMode": "Chunked"
                     }
                 }
+            },
+            "Current_time": {
+                "type": "Expression",
+                "kind": "CurrentTime",
+                "inputs": {},
+                "runAfter": {}
             }
         },
         "triggers": {
